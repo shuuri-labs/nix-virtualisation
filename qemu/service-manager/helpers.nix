@@ -3,7 +3,7 @@
 rec {
   mkTapArgs = taps: smp:
     lib.flatten (lib.imap0 (idx: tap: [
-      "-netdev" "tap,id=net${toString idx},br=br0,script=no,downscript=no,vhost=on,helper=/run/wrappers/bin/qemu-bridge-helper"
+      "-netdev" "tap,id=net${toString idx},br=br0,helper=/run/wrappers/bin/qemu-bridge-helper"
       "-device" "virtio-net-pci,netdev=net${toString idx},mac=${tap.macAddress},mq=on,vectors=${toString (smp*2)},tx=bh"
     ]) taps);
 
