@@ -6,26 +6,23 @@ rec {
       # Generate a deterministic MAC from an integer idx
       mkMac = idx:
         let
-          # Convert to hex manually
-          hexChars = "0123456789abcdef";
-          toHex = n: 
-            if n == 0 then "0"
-            else let
-              digit = builtins.substring (builtins.mod n 16) 1 hexChars;
-              rest = builtins.div n 16;
-            in
-              if rest == 0 then digit
-              else toHex rest + digit;
-          hx    = toHex idx;
-          hx6   = lib.fixedWidthString 6 "0" hx;
-          octets = lib.map (i: lib.substring (2 * i) (2 * i + 2) hx6) (lib.range 0 2);
+          # Simple hex conversion using string manipulation
+          hex = builtins.toString idx;
+          # Pad with zeros to ensure 6 characters
+          padded = builtins.substring 0 6 (hex + "000000");
+          # Split into octets
+          octets = [
+            builtins.substring 0 2 padded
+            builtins.substring 2 2 padded
+            builtins.substring 4 2 padded
+          ];
         in
-          lib.concatStringsSep ":" (["52" "54" "00"] ++ octets);
+          builtins.concatStringsSep ":" (["52" "54" "00"] ++ octets);
     in
-      lib.flatten (lib.imap0 (idx: bridge: [
-        "-netdev" "tap,id=net${toString idx},br=${bridge},helper=/run/wrappers/bin/qemu-bridge-helper,vhost=on"
-        "-device" "virtio-net-pci,netdev=net${toString idx},mac=${mkMac idx},mq=on,vectors=${toString (smp*2)},tx=bh"
-      ]) hostBridges);
+      builtins.concatLists (builtins.genList (idx: [
+        "-netdev" "tap,id=net${builtins.toString idx},br=${builtins.elemAt hostBridges idx},helper=/run/wrappers/bin/qemu-bridge-helper,vhost=on"
+        "-device" "virtio-net-pci,netdev=net${builtins.toString idx},mac=${mkMac idx},mq=on,vectors=${builtins.toString (smp*2)},tx=bh"
+      ]) (builtins.length hostBridges));
 
   mkPciPassthroughArgs = hosts:
     lib.concatMap (h: [ "-device" "vfio-pci,host=${h.address}" ]) hosts;
