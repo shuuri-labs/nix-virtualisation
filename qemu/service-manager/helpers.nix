@@ -12,10 +12,10 @@ rec {
         in
           lib.concatStringsSep ":" (["52" "54" "00"] ++ octets);
     in
-    lib.flatten (lib.imap0 (idx: bridge: [
-      "-netdev" "tap,id=net${toString idx},br=${bridge},helper=/run/wrappers/bin/qemu-bridge-helper,vhost=on"
-      "-device" "virtio-net-pci,netdev=net${toString idx},mac=${mkMac idx},mq=on,vectors=${toString (smp*2)},tx=bh"
-    ]) hostBridges);
+      lib.flatten (lib.imap0 (idx: bridge: [
+        "-netdev" "tap,id=net${toString idx},br=${bridge},helper=/run/wrappers/bin/qemu-bridge-helper,vhost=on"
+        "-device" "virtio-net-pci,netdev=net${toString idx},mac=${mkMac idx},mq=on,vectors=${toString (smp*2)},tx=bh"
+      ]) hostBridges);
 
   mkPciPassthroughArgs = hosts:
     lib.concatMap (h: [ "-device" "vfio-pci,host=${h.address}" ]) hosts;
