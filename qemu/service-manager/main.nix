@@ -1,24 +1,24 @@
 { config, lib, pkgs, ... }:
 
 let
-  cfg            = config.virtualisation.qemu.manager.services;
-  helpers        = import ./helpers.nix { inherit lib pkgs; };
-  bridgeNames    = lib.unique (lib.flatten (lib.mapAttrsToList (_: v: v.bridges) cfg));
-  vncPorts       = map (n: 5900 + n) (lib.collect lib.isInt (lib.mapAttrsToList (_: v: v.vncPort) cfg));
-  pciIds         = lib.concatStringsSep "," (
+  cfg             = config.virtualisation.qemu.manager.services;
+  helpers         = import ./helpers.nix { inherit lib pkgs; };
+  hostBridgeNames = lib.unique (lib.flatten (lib.mapAttrsToList (_: v: v.hostBridges) cfg));
+  vncPorts        = map (n: 5900 + n) (lib.collect lib.isInt (lib.mapAttrsToList (_: v: v.vncPort) cfg));
+  pciIds          = lib.concatStringsSep "," (
                      lib.flatten (lib.mapAttrsToList (_: v:
                        lib.map (h: h.vendorDeviceId) v.pciHosts) cfg));
   imageDirectory = "/var/lib/vm/images";
 in {
   config = lib.mkIf (cfg != {}) {
-    virtualisation.libvirtd.allowedBridges =  bridgeNames;
+    virtualisation.libvirtd.allowedBridges =  hostBridgeNames;
 
     networking.firewall.extraCommands = lib.mkAfter ''
       ${lib.concatStringsSep "\n"
         (map (br: ''
           iptables -A FORWARD -i ${br} -j ACCEPT
           iptables -A FORWARD -o ${br} -j ACCEPT
-        '') bridgeNames)}
+        '') hostBridgeNames)}
     ''; # add firewall rule to block traffic from VMs to non-router mac addresses (TODO)
 
     networking.firewall.allowedTCPPorts = vncPorts;
@@ -114,7 +114,7 @@ in {
                  ]
 
               # bridges, PCI & USB passthrough, extra args
-              ++ helpers.mkTapArgs            v.taps v.smp
+              ++ helpers.mkTapArgs            v.hostBridges v.smp
               ++ helpers.mkPciPassthroughArgs v.pciHosts
               ++ helpers.mkUsbPassthroughArgs v.usbHosts
               ++ helpers.mkExtraArgs          v.extraArgs

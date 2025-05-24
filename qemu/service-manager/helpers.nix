@@ -1,11 +1,11 @@
 { lib, pkgs }:
 
 rec {
-  mkTapArgs = taps: smp:
-    lib.flatten (lib.imap0 (idx: tap: [
-      "-netdev" "tap,id=net${toString idx},br=br0,helper=/run/wrappers/bin/qemu-bridge-helper"
-      "-device" "virtio-net-pci,netdev=net${toString idx},mac=${tap.macAddress},mq=on,vectors=${toString (smp*2)},tx=bh"
-    ]) taps);
+  mkTapArgs = hostBridges: smp:
+    lib.flatten (lib.imap0 (idx: bridge: [
+      "-netdev" "tap,id=net${toString idx},br=${bridge},helper=/run/wrappers/bin/qemu-bridge-helper"
+      "-device" "virtio-net-pci,netdev=net${toString idx},mq=on,vectors=${toString (smp*2)},tx=bh"
+    ]) hostBridges);
 
   mkPciPassthroughArgs = hosts:
     lib.concatMap (h: [ "-device" "vfio-pci,host=${h.address}" ]) hosts;
