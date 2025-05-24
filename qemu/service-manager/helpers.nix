@@ -7,7 +7,7 @@ rec {
       mkMac = idx:
         let
           # Simple hex conversion with padding
-          hex = builtins.toString (idx + 1);  # Start from 1 to avoid 00:00:00
+          hex = builtins.toString idx;
           # Ensure 6 digits by padding with zeros
           padded = "000000" + hex;
           # Take last 6 digits
@@ -18,10 +18,8 @@ rec {
             (builtins.substring 2 2 last6)
             (builtins.substring 4 2 last6)
           ];
-          # Use different prefix for first interface to avoid bridge MAC conflicts
-          prefix = if idx == 0 then ["52" "54" "01"] else ["52" "54" "00"];
         in
-          builtins.concatStringsSep ":" (prefix ++ octets);
+          builtins.concatStringsSep ":" (["52" "54" "00"] ++ octets);
     in
       builtins.concatLists (builtins.genList (idx: [
         "-netdev" "tap,id=net${builtins.toString idx},br=${builtins.elemAt hostBridges idx},helper=/run/wrappers/bin/qemu-bridge-helper,vhost=on"
