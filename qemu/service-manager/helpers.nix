@@ -2,9 +2,19 @@
 
 rec {
   mkTapArgs = hostBridges: smp:
+    let
+      # Generate a deterministic MAC from an integer idx
+      mkMac = idx:
+        let
+          hx    = lib.formatInt 16 idx;
+          hx6   = lib.padLeft 6 "0" hx;
+          octets = lib.map (i: lib.substring (2 * i) (2 * i + 2) hx6) (lib.range 0 2);
+        in
+          lib.concatStringsSep ":" (["52" "54" "00"] ++ octets);
+    in
     lib.flatten (lib.imap0 (idx: bridge: [
       "-netdev" "tap,id=net${toString idx},br=${bridge},helper=/run/wrappers/bin/qemu-bridge-helper,vhost=on"
-      "-device" "virtio-net-pci,netdev=net${toString idx},mq=on,vectors=${toString (smp*2)},tx=bh"
+      "-device" "virtio-net-pci,netdev=net${toString idx},mac=${mkMac idx},mq=on,vectors=${toString (smp*2)},tx=bh"
     ]) hostBridges);
 
   mkPciPassthroughArgs = hosts:
