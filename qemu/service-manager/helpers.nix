@@ -6,17 +6,17 @@ rec {
       # Generate a deterministic MAC from an integer idx
       mkMac = idx:
         let
-          # Convert to hex and ensure it's at least 6 characters
+          # Simple hex conversion with padding
           hex = builtins.toString idx;
-          # Pad with zeros to ensure 6 characters, but use the actual number
-          padded = if builtins.stringLength hex < 6 
-            then builtins.substring 0 6 (hex + "000000")
-            else builtins.substring 0 6 hex;
+          # Ensure 6 digits by padding with zeros
+          padded = "000000" + hex;
+          # Take last 6 digits
+          last6 = builtins.substring (builtins.stringLength padded - 6) 6 padded;
           # Split into octets
           octets = [
-            (builtins.substring 0 2 padded)
-            (builtins.substring 2 2 padded)
-            (builtins.substring 4 2 padded)
+            (builtins.substring 0 2 last6)
+            (builtins.substring 2 2 last6)
+            (builtins.substring 4 2 last6)
           ];
         in
           builtins.concatStringsSep ":" (["52" "54" "00"] ++ octets);
