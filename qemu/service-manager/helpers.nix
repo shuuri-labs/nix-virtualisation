@@ -7,7 +7,7 @@ rec {
       mkMac = idx:
         let
           # Simple hex conversion with padding
-          hex = builtins.toString idx;
+          hex = builtins.toString (idx + 1);  # Start from 1 to avoid 00:00:00
           # Ensure 6 digits by padding with zeros
           padded = "000000" + hex;
           # Take last 6 digits
