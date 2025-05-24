@@ -6,7 +6,17 @@ rec {
       # Generate a deterministic MAC from an integer idx
       mkMac = idx:
         let
-          hx    = builtins.toHexString idx;
+          # Convert to hex manually
+          hexChars = "0123456789abcdef";
+          toHex = n: 
+            if n == 0 then "0"
+            else let
+              digit = builtins.substring (builtins.mod n 16) 1 hexChars;
+              rest = builtins.div n 16;
+            in
+              if rest == 0 then digit
+              else toHex rest + digit;
+          hx    = toHex idx;
           hx6   = lib.fixedWidthString 6 "0" hx;
           octets = lib.map (i: lib.substring (2 * i) (2 * i + 2) hx6) (lib.range 0 2);
         in
