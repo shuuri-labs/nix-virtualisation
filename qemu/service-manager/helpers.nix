@@ -18,8 +18,10 @@ rec {
             (builtins.substring 2 2 last6)
             (builtins.substring 4 2 last6)
           ];
+          # Use different prefix for first interface to avoid bridge MAC conflicts
+          prefix = if idx == 0 then ["52" "54" "01"] else ["52" "54" "00"];
         in
-          builtins.concatStringsSep ":" (["52" "54" "00"] ++ octets);
+          builtins.concatStringsSep ":" (prefix ++ octets);
     in
       builtins.concatLists (builtins.genList (idx: [
         "-netdev" "tap,id=net${builtins.toString idx},br=${builtins.elemAt hostBridges idx},helper=/run/wrappers/bin/qemu-bridge-helper,vhost=on"
