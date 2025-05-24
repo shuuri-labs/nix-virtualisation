@@ -7,7 +7,7 @@ rec {
       mkMac = idx:
         let
           hx    = lib.formatInt 16 idx;
-          hx6   = lib.padLeft 6 "0" hx;
+          hx6   = lib.fixedWidthString 6 "0" hx;
           octets = lib.map (i: lib.substring (2 * i) (2 * i + 2) hx6) (lib.range 0 2);
         in
           lib.concatStringsSep ":" (["52" "54" "00"] ++ octets);
