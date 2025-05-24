@@ -12,9 +12,9 @@ rec {
           padded = builtins.substring 0 6 (hex + "000000");
           # Split into octets
           octets = [
-            builtins.substring 0 2 padded
-            builtins.substring 2 2 padded
-            builtins.substring 4 2 padded
+            (builtins.substring 0 2 padded)
+            (builtins.substring 2 2 padded)
+            (builtins.substring 4 2 padded)
           ];
         in
           builtins.concatStringsSep ":" (["52" "54" "00"] ++ octets);
@@ -25,20 +25,22 @@ rec {
       ]) (builtins.length hostBridges));
 
   mkPciPassthroughArgs = hosts:
-    lib.concatMap (h: [ "-device" "vfio-pci,host=${h.address}" ]) hosts;
+    builtins.concatLists (builtins.map (h: [ "-device" "vfio-pci,host=${h.address}" ]) hosts);
 
   mkUsbPassthroughArgs = hosts:
-    lib.concatMap (h: [ "-device"
-      "usb-host,vendorid=${h.vendorId},productid=${h.productId}" ]) hosts;
+    builtins.concatLists (builtins.map (h: [ "-device"
+      "usb-host,vendorid=${h.vendorId},productid=${h.productId}" ]) hosts);
 
-  mkExtraArgs = extra: lib.concatMap (a: [ "-${a}" ]) extra;
+  mkExtraArgs = extra: builtins.concatLists (builtins.map (a: [ "-${a}" ]) extra);
 
   mkUefiArgs = name: enable: let
     code     = "${pkgs.OVMFFull.fd}/FV/OVMF_CODE.fd";
     varsFile = "/var/lib/libvirt/images/${name}-ovmf-vars.fd";
   in
-    lib.optional enable "-drive if=pflash,format=raw,readonly=on,file=${code}"
-  ++ lib.optional enable "-drive if=pflash,format=raw,file=${varsFile}";
+    builtins.concatLists [
+      (if enable then [ "-drive" "if=pflash,format=raw,readonly=on,file=${code}" ] else [])
+      (if enable then [ "-drive" "if=pflash,format=raw,file=${varsFile}" ] else [])
+    ];
 
   mkUefiPreStart = name: enable: 
     if enable then ''
@@ -46,5 +48,5 @@ rec {
         ${pkgs.OVMFFull.fd}/FV/OVMF_VARS.fd /var/lib/libvirt/images/${name}-ovmf-vars.fd
     '' else "";
 
-  prettyArgs = args: lib.concatStringsSep " \\\n  " args;
+  prettyArgs = args: builtins.concatStringsSep " \\\n  " args;
 }
