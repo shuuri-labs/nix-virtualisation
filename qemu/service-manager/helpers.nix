@@ -3,15 +3,12 @@
 rec {
   # Generate a simple MAC by appending a padded number to the base MAC
   genMac = vmName: idx: let
-    # Generate last two octets from VM name hash and index
     nameHash = builtins.hashString "md5" vmName;
-    # Take first 2 chars of hash for first of last two octets
     firstLast = builtins.substring 0 2 nameHash;
-    # Use index for last octet, padded to 2 digits
+    firstSecond = builtins.subString 0 1 nameHash;
     lastOctet = if idx < 10 then "0${builtins.toString idx}" else builtins.toString idx;
-  in "02:42:ac:11:${firstLast}:${lastOctet}";
+  in "02:42:ac:${firstSecond}:${firstLast}:${lastOctet}";
 
-  # Generate a deterministic MAC from an integer idx
   mkTapArgs = hostBridges: vmName: smp:
     builtins.concatLists (builtins.genList (idx: [
       "-netdev" "tap,id=${vmName}-net${builtins.toString idx},br=${builtins.elemAt hostBridges idx},helper=/run/wrappers/bin/qemu-bridge-helper,vhost=on"
