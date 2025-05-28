@@ -1,8 +1,8 @@
 { lib, pkgs }:
 
 rec {
-  genRandomMAC = hostName: let
-    base = builtins.hashString "md5" hostName;
+  genRandomMAC = salt: let
+    base = builtins.hashString "md5" salt;
     bytes = builtins.substring 0 12 base;
     formatted = builtins.concatStringsSep ":" (builtins.genList (i: builtins.substring (i * 2) 2 bytes) 6);
   in formatted;
