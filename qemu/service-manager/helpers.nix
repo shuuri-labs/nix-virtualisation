@@ -10,7 +10,7 @@ rec {
     # Combine with locally administered prefix and index
     firstFive = builtins.concatStringsSep ":" (["52" "54" "00"] ++ octets);
     # Use index for last octet, ensuring it's unique per interface and properly padded
-    lastOctet = if idx < 10 then "0${builtins.toString idx}" else builtins.toString idx;
+    lastOctet = if idx < 16 then "0${builtins.toString idx}" else builtins.toString idx;
   in "${firstFive}:${lastOctet}";
 
   # Generate a deterministic MAC from an integer idx

@@ -130,7 +130,7 @@ in {
           #!/usr/bin/env bash
           set -euo pipefail
           # Remove any tap devices that might have been left behind
-          ${pkgs.iproute2}/bin/ip tuntap del dev ${name}-net0 mode tap || true
+          ${pkgs.iproute2}/bin/ip tuntap del dev net0 mode tap || true
         '';
       };
     }
