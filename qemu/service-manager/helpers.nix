@@ -1,12 +1,12 @@
 { lib, pkgs }:
 
 rec {
-    genRandomMAC = 
-    let
-      randomHex = builtins.substring 0 2 (builtins.hashString "md5" (toString (builtins.currentTime)));
-      # Set the second bit of the first byte to make it locally administered
-      firstByte = builtins.substring 0 2 (builtins.hashString "md5" (toString (builtins.currentTime + 1)));
-    in "${firstByte}:${randomHex}:${randomHex}:${randomHex}:${randomHex}:${randomHex}";
+  genRandomMAC = 
+  let
+    randomHex = builtins.substring 0 2 (builtins.hashString "md5" (toString (builtins.currentTime)));
+    # Set the second bit of the first byte to make it locally administered
+    firstByte = builtins.substring 0 2 (builtins.hashString "md5" (toString (builtins.currentTime + 1)));
+  in "${firstByte}:${randomHex}:${randomHex}:${randomHex}:${randomHex}:${randomHex}";
 
   # Generate a deterministic MAC from an integer idx
   mkTapArgs = hostBridges: smp:
