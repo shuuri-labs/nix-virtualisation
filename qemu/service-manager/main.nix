@@ -7,7 +7,7 @@ let
   vncPorts        = map (n: 5900 + n) (lib.collect lib.isInt (lib.mapAttrsToList (_: v: v.vncPort) cfg.services));
   pciIds          = lib.concatStringsSep "," (
                      lib.flatten (lib.mapAttrsToList (_: v:
-                       lib.map (h: h.vendorDeviceId) v.pciHosts) cfg));
+                       lib.map (h: h.vendorDeviceId) v.pciHosts) cfg.services));
   imageDirectory = "/var/lib/vm/images";
 in {
   config = lib.mkIf (cfg.services != {}) {
