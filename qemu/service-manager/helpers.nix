@@ -7,10 +7,10 @@ rec {
   in "aa:d2:6c:d7:3c:${padded}";
 
   # Generate a deterministic MAC from an integer idx
-  mkTapArgs = hostBridges: smp:
+  mkTapArgs = hostBridges: vmName: smp:
     builtins.concatLists (builtins.genList (idx: [
-      "-netdev" "tap,id=net${builtins.toString idx},br=${builtins.elemAt hostBridges idx},helper=/run/wrappers/bin/qemu-bridge-helper,vhost=on"
-      "-device" "virtio-net-pci,netdev=net${builtins.toString idx},mac=${genMac idx},mq=on,vectors=${builtins.toString (smp*2)},tx=bh" 
+      "-netdev" "tap,id=${vmName}-net${builtins.toString idx},br=${builtins.elemAt hostBridges idx},helper=/run/wrappers/bin/qemu-bridge-helper,vhost=on"
+      "-device" "virtio-net-pci,netdev=${vmName}-net${builtins.toString idx},mq=on,vectors=${builtins.toString (smp*2)},tx=bh" # ,mac=${genMac (builtins.toString idx)}
     ]) (builtins.length hostBridges));
 
   mkPciPassthroughArgs = hosts:
