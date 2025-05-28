@@ -125,13 +125,6 @@ in {
         KillSignal = "SIGRTMIN+3";
         TimeoutStopSec = "10min";
         KillMode   = "mixed";
-        # Clean up tap devices on service stop
-        ExecStopPost = pkgs.writeShellScript "qemu-${name}-post.sh" ''
-          #!/usr/bin/env bash
-          set -euo pipefail
-          # Remove any tap devices that might have been left behind
-          ${pkgs.iproute2}/bin/ip tuntap del dev net0 mode tap || true
-        '';
       };
     }
     )) cfg;
