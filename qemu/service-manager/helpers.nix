@@ -3,21 +3,19 @@
 rec {
   # Generate a simple MAC by appending a padded number to the base MAC
   genMac = vmName: idx: let
-    # Generate a deterministic MAC using VM name hash
+    # Generate last two octets from VM name hash and index
     nameHash = builtins.hashString "md5" vmName;
-    # Use first 3 octets from hash, with locally administered prefix
-    octets = builtins.genList (i: builtins.substring (i * 2) 2 nameHash) 3;
-    # Combine with locally administered prefix and index
-    firstFive = builtins.concatStringsSep ":" (["52" "54" "00"] ++ octets);
-    # Use index for last octet, ensuring it's unique per interface and properly padded
-    lastOctet = if idx < 16 then "0${builtins.toString idx}" else builtins.toString idx;
-  in "${firstFive}:${lastOctet}";
+    # Take first 2 chars of hash for first of last two octets
+    firstLast = builtins.substring 0 2 nameHash;
+    # Use index for last octet, padded to 2 digits
+    lastOctet = if idx < 10 then "0${builtins.toString idx}" else builtins.toString idx;
+  in "02:42:ac:11:${firstLast}:${lastOctet}";
 
   # Generate a deterministic MAC from an integer idx
   mkTapArgs = hostBridges: vmName: smp:
     builtins.concatLists (builtins.genList (idx: [
-      "-netdev" "tap,id=net${builtins.toString idx},br=${builtins.elemAt hostBridges idx},helper=/run/wrappers/bin/qemu-bridge-helper,vhost=on"
-      "-device" "virtio-net-pci,netdev=net${builtins.toString idx},mac=${genMac vmName idx},mq=on,vectors=${builtins.toString (smp*2)},tx=bh"
+      "-netdev" "tap,id=${vmName}-net${builtins.toString idx},br=${builtins.elemAt hostBridges idx},helper=/run/wrappers/bin/qemu-bridge-helper,vhost=on"
+      "-device" "virtio-net-pci,netdev=${vmName}-net${builtins.toString idx},mac=${genMac vmName idx},mq=on,vectors=${builtins.toString (smp*2)},tx=bh"
     ]) (builtins.length hostBridges));
 
   mkPciPassthroughArgs = hosts:
