@@ -4,10 +4,10 @@ rec {
   # Generate a simple MAC by appending a padded number to the base MAC
   genMac = vmName: idx: let
     nameHash = builtins.hashString "md5" vmName;
-    firstLast = builtins.substring 0 2 nameHash;
-    firstSecond = builtins.substring 1 3 nameHash;
+    fourthOctet = builtins.substring 0 2 nameHash;
+    fifthOctet = builtins.substring 2 2 nameHash;
     lastOctet = if idx < 10 then "0${builtins.toString idx}" else builtins.toString idx;
-  in "02:42:ac:${firstSecond}:${firstLast}:${lastOctet}";
+  in "02:42:ac:${fourthOctet}:${fifthOctet}:${lastOctet}";
 
   mkTapArgs = hostBridges: vmName: smp:
     builtins.concatLists (builtins.genList (idx: [
