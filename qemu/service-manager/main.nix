@@ -3,8 +3,8 @@
 let
   cfg             = config.virtualisation.qemu.manager;
   helpers         = import ./helpers.nix { inherit lib pkgs; };
-  hostBridgeNames = lib.unique (lib.flatten (lib.mapAttrsToList (_: v: v.hostBridges) cfg));
-  vncPorts        = map (n: 5900 + n) (lib.collect lib.isInt (lib.mapAttrsToList (_: v: v.vncPort) cfg));
+  hostBridgeNames = lib.unique (lib.flatten (lib.mapAttrsToList (_: v: v.hostBridges) cfg.services));
+  vncPorts        = map (n: 5900 + n) (lib.collect lib.isInt (lib.mapAttrsToList (_: v: v.vncPort) cfg.services));
   pciIds          = lib.concatStringsSep "," (
                      lib.flatten (lib.mapAttrsToList (_: v:
                        lib.map (h: h.vendorDeviceId) v.pciHosts) cfg));
