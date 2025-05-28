@@ -1,7 +1,7 @@
 { config, lib, pkgs, ... }:
 
 let
-  cfg             = config.virtualisation.qemu.manager.services;
+  cfg             = config.virtualisation.qemu.manager;
   helpers         = import ./helpers.nix { inherit lib pkgs; };
   hostBridgeNames = lib.unique (lib.flatten (lib.mapAttrsToList (_: v: v.hostBridges) cfg));
   vncPorts        = map (n: 5900 + n) (lib.collect lib.isInt (lib.mapAttrsToList (_: v: v.vncPort) cfg));
@@ -10,7 +10,7 @@ let
                        lib.map (h: h.vendorDeviceId) v.pciHosts) cfg));
   imageDirectory = "/var/lib/vm/images";
 in {
-  config = lib.mkIf (cfg != {}) {
+  config = lib.mkIf (cfg.services != {}) {
     virtualisation.libvirtd.allowedBridges =  hostBridgeNames;
 
     networking.firewall.extraCommands = lib.mkAfter ''
@@ -114,7 +114,7 @@ in {
                  ]
 
               # bridges, PCI & USB passthrough, extra args
-              ++ helpers.mkTapArgs            v.hostBridges name v.smp
+              ++ helpers.mkTapArgs            v.hostBridges cfg.hostName name v.smp
               ++ helpers.mkPciPassthroughArgs v.pciHosts
               ++ helpers.mkUsbPassthroughArgs v.usbHosts
               ++ helpers.mkExtraArgs          v.extraArgs
@@ -127,12 +127,12 @@ in {
         KillMode   = "mixed";
       };
     }
-    )) cfg;
+    )) cfg.services;
 
     # console aliases
     environment.shellAliases = lib.mapAttrs' (n: _: {
       name  = "console-${n}";
       value = "sudo socat UNIX-CONNECT:/tmp/${n}-console.sock stdio";
-    }) cfg;
+    }) cfg.services;
   };
 }

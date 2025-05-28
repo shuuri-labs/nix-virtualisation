@@ -2,17 +2,23 @@
 
 rec {
   # Generate a simple MAC by appending a padded number to the base MAC
-  genMac = vmName: idx: let
-    nameHash = builtins.hashString "md5" vmName;
-    fourthOctet = builtins.substring 0 2 nameHash;
-    fifthOctet = builtins.substring 2 2 nameHash;
-    lastOctet = if idx < 10 then "0${builtins.toString idx}" else builtins.toString idx;
-  in "02:42:ac:${fourthOctet}:${fifthOctet}:${lastOctet}";
+  genMac = hostName: vmName: idx: let
+    hostNameHash = builtins.hashString "md5" hostName;
+    vmNameHash = builtins.hashString "md5" vmName;
+    # Generate a simple MAC by appending a padded number to the base MAC
+    secondOctet = builtins.substring 0 2 hostNameHash;
+    thirdOctet = builtins.substring 2 2 hostNameHash;
 
-  mkTapArgs = hostBridges: vmName: smp:
+    fourthOctet = builtins.substring 0 2 vmNameHash;
+    fifthOctet = builtins.substring 2 2 vmNameHash;
+
+    lastOctet = if idx < 10 then "0${builtins.toString idx}" else builtins.toString idx;
+  in "02:${secondOctet}:${thirdOctet}:${fourthOctet}:${fifthOctet}:${lastOctet}";
+
+  mkTapArgs = hostBridges: hostName: vmName: smp:
     builtins.concatLists (builtins.genList (idx: [
       "-netdev" "tap,id=${vmName}-net${builtins.toString idx},br=${builtins.elemAt hostBridges idx},helper=/run/wrappers/bin/qemu-bridge-helper,vhost=on"
-      "-device" "virtio-net-pci,netdev=${vmName}-net${builtins.toString idx},mac=${genMac vmName idx},mq=on,vectors=${builtins.toString (smp*2)},tx=bh"
+      "-device" "virtio-net-pci,netdev=${vmName}-net${builtins.toString idx},mac=${genMac hostName vmName idx},mq=on,vectors=${builtins.toString (smp*2)},tx=bh"
     ]) (builtins.length hostBridges));
 
   mkPciPassthroughArgs = hosts:
