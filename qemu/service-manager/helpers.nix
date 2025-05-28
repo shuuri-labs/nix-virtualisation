@@ -11,7 +11,7 @@ rec {
   mkTapArgs = hostBridges: smp:
     builtins.concatLists (builtins.genList (idx: [
       "-netdev" "tap,id=net${builtins.toString idx},br=${builtins.elemAt hostBridges idx},helper=/run/wrappers/bin/qemu-bridge-helper,vhost=on"
-      "-device" "virtio-net-pci,netdev=net${builtins.toString idx},mac=${genRandomMAC (builtins.toString idx)},mq=on,vectors=${builtins.toString (smp*2)},tx=bh"
+      "-device" "virtio-net-pci,netdev=net${builtins.toString idx},mq=on,vectors=${builtins.toString (smp*2)},tx=bh" # ,mac=${genRandomMAC (builtins.toString idx)}
     ]) (builtins.length hostBridges));
 
   mkPciPassthroughArgs = hosts:
