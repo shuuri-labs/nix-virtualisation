@@ -3,12 +3,18 @@
 rec {
   # Generate a simple MAC by appending a padded number to the base MAC
   genMac = vmName: idx: let
-    # Generate first 5 octets from VM name hash
+    # Generate first 5 octets from VM name hash, ensuring locally administered range
     nameHash = builtins.hashString "md5" vmName;
-    octets = builtins.genList (i: builtins.substring (i * 2) 2 nameHash) 5;
-    firstFive = builtins.concatStringsSep ":" octets;
-    # Use index for last octet
-    padded = builtins.substring 0 2 (builtins.concatStringsSep "" ["0" (builtins.toString (idx + 1))]);
+    # Set the locally administered bit (second least significant bit of first octet)
+    firstOctet = builtins.substring 0 2 nameHash;
+    firstOctetHex = builtins.fromJSON "0x${firstOctet}";
+    firstOctetLocal = builtins.toString (firstOctetHex | 2); # Set the locally administered bit
+    firstOctetStr = builtins.substring 0 2 (builtins.concatStringsSep "" ["0" firstOctetLocal]);
+    # Get remaining octets
+    remainingOctets = builtins.genList (i: builtins.substring ((i + 1) * 2) 2 nameHash) 4;
+    firstFive = builtins.concatStringsSep ":" ([firstOctetStr] ++ remainingOctets);
+    # Use index for last octet, ensuring it's unique per interface
+    padded = builtins.substring 0 2 (builtins.concatStringsSep "" ["0" (builtins.toString idx)]);
   in "${firstFive}:${padded}";
 
   # Generate a deterministic MAC from an integer idx
