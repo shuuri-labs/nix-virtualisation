@@ -8,7 +8,7 @@ rec {
     # Set the locally administered bit (second least significant bit of first octet)
     firstOctet = builtins.substring 0 2 nameHash;
     firstOctetHex = builtins.fromJSON "0x${firstOctet}";
-    firstOctetLocal = builtins.toString (firstOctetHex | 2); # Set the locally administered bit
+    firstOctetLocal = builtins.toString (builtins.bitOr firstOctetHex 2); # Set the locally administered bit
     firstOctetStr = builtins.substring 0 2 (builtins.concatStringsSep "" ["0" firstOctetLocal]);
     # Get remaining octets
     remainingOctets = builtins.genList (i: builtins.substring ((i + 1) * 2) 2 nameHash) 4;
