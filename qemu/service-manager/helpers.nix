@@ -1,30 +1,19 @@
 { lib, pkgs }:
 
 rec {
-  mkTapArgs = hostBridges: smp:
+    genRandomMAC = 
     let
-      # Generate a deterministic MAC from an integer idx
-      mkMac = idx:
-        let
-          # Simple hex conversion with padding
-          hex = builtins.toString idx;
-          # Ensure 6 digits by padding with zeros
-          padded = "000000" + hex;
-          # Take last 6 digits
-          last6 = builtins.substring (builtins.stringLength padded - 6) 6 padded;
-          # Split into octets
-          octets = [
-            (builtins.substring 0 2 last6)
-            (builtins.substring 2 2 last6)
-            (builtins.substring 4 2 last6)
-          ];
-        in
-          builtins.concatStringsSep ":" (["52" "54" "00"] ++ octets);
-    in
-      builtins.concatLists (builtins.genList (idx: [
-        "-netdev" "tap,id=net${builtins.toString idx},br=${builtins.elemAt hostBridges idx},helper=/run/wrappers/bin/qemu-bridge-helper,vhost=on"
-        "-device" "virtio-net-pci,netdev=net${builtins.toString idx},mac=${mkMac idx},mq=on,vectors=${builtins.toString (smp*2)},tx=bh"
-      ]) (builtins.length hostBridges));
+      randomHex = builtins.substring 0 2 (builtins.hashString "md5" (toString (builtins.currentTime)));
+      # Set the second bit of the first byte to make it locally administered
+      firstByte = builtins.substring 0 2 (builtins.hashString "md5" (toString (builtins.currentTime + 1)));
+    in "${firstByte}:${randomHex}:${randomHex}:${randomHex}:${randomHex}:${randomHex}";
+
+  # Generate a deterministic MAC from an integer idx
+  mkTapArgs = hostBridges: smp:
+    builtins.concatLists (builtins.genList (idx: [
+      "-netdev" "tap,id=net${builtins.toString idx},br=${builtins.elemAt hostBridges idx},helper=/run/wrappers/bin/qemu-bridge-helper,vhost=on"
+      "-device" "virtio-net-pci,netdev=net${builtins.toString idx},mac=${genRandomMAC},mq=on,vectors=${builtins.toString (smp*2)},tx=bh"
+    ]) (builtins.length hostBridges));
 
   mkPciPassthroughArgs = hosts:
     builtins.concatLists (builtins.map (h: [ "-device" "vfio-pci,host=${h.address}" ]) hosts);
