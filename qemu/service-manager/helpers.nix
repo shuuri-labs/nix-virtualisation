@@ -5,7 +5,7 @@ rec {
   genMac = vmName: idx: let
     nameHash = builtins.hashString "md5" vmName;
     firstLast = builtins.substring 0 2 nameHash;
-    firstSecond = builtins.substring 0 1 nameHash;
+    firstSecond = builtins.substring 1 3 nameHash;
     lastOctet = if idx < 10 then "0${builtins.toString idx}" else builtins.toString idx;
   in "02:42:ac:${firstSecond}:${firstLast}:${lastOctet}";
 
