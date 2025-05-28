@@ -1,18 +1,17 @@
 { lib, pkgs }:
 
 rec {
-  genRandomMAC = 
-  let
-    randomHex = builtins.substring 0 2 (builtins.hashString "md5" (toString (builtins.currentTime)));
-    # Set the second bit of the first byte to make it locally administered
-    firstByte = builtins.substring 0 2 (builtins.hashString "md5" (toString (builtins.currentTime + 1)));
-  in "${firstByte}:${randomHex}:${randomHex}:${randomHex}:${randomHex}:${randomHex}";
+  genRandomMAC = hostName: let
+    base = builtins.hashString "md5" hostName;
+    bytes = builtins.substring 0 12 base;
+    formatted = builtins.concatStringsSep ":" (builtins.genList (i: builtins.substring (i * 2) 2 bytes) 6);
+  in formatted;
 
   # Generate a deterministic MAC from an integer idx
   mkTapArgs = hostBridges: smp:
     builtins.concatLists (builtins.genList (idx: [
       "-netdev" "tap,id=net${builtins.toString idx},br=${builtins.elemAt hostBridges idx},helper=/run/wrappers/bin/qemu-bridge-helper,vhost=on"
-      "-device" "virtio-net-pci,netdev=net${builtins.toString idx},mac=${genRandomMAC},mq=on,vectors=${builtins.toString (smp*2)},tx=bh"
+      "-device" "virtio-net-pci,netdev=net${builtins.toString idx},mac=${genRandomMAC (builtins.toString idx)},mq=on,vectors=${builtins.toString (smp*2)},tx=bh"
     ]) (builtins.length hostBridges));
 
   mkPciPassthroughArgs = hosts:
