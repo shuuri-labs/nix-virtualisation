@@ -9,9 +9,9 @@ rec {
     octets = builtins.genList (i: builtins.substring (i * 2) 2 nameHash) 3;
     # Combine with locally administered prefix and index
     firstFive = builtins.concatStringsSep ":" (["52" "54" "00"] ++ octets);
-    # Use index for last octet, ensuring it's unique per interface
-    padded = builtins.substring 0 2 (builtins.concatStringsSep "" ["0" (builtins.toString idx)]);
-  in "${firstFive}:${padded}";
+    # Use index for last octet, ensuring it's unique per interface and properly padded
+    lastOctet = if idx < 10 then "0${builtins.toString idx}" else builtins.toString idx;
+  in "${firstFive}:${lastOctet}";
 
   # Generate a deterministic MAC from an integer idx
   mkTapArgs = hostBridges: vmName: smp:
