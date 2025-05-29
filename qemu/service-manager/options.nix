@@ -42,6 +42,7 @@ in
           restart     = lib.mkOption { type = lib.types.str; default = "always"; };
         };
       }));
+      default = {};
     };
     default = {};
   };
