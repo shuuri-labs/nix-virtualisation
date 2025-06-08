@@ -127,7 +127,7 @@ in {
       vfio-pci-bind = {
         description = "Bind specific PCI devices to VFIO";
         wantedBy = [ "multi-user.target" ];
-        after = [ "multi-user.target" ];
+        before = [ "multi-user.target" ];
         serviceConfig = {
           Type = "oneshot";
           RemainAfterExit = true;
