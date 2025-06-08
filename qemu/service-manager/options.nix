@@ -11,7 +11,6 @@ let
   pciHost = lib.types.submodule {
       options = {
         address         = lib.mkOption { type = lib.types.str; };
-        vendorDeviceId  = lib.mkOption { type = lib.types.str; default = ""; };
     };
   };
 
