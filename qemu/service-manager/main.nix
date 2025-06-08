@@ -23,35 +23,6 @@ in {
 
     networking.firewall.allowedTCPPorts = vncPorts;
 
-    # Device-specific VFIO binding service instead of global vendor/device ID binding
-    systemd.services.vfio-pci-bind = lib.mkIf (pciAddresses != []) {
-      description = "Bind specific PCI devices to VFIO";
-      wantedBy = [ "multi-user.target" ];
-      after = [ "multi-user.target" ];
-      serviceConfig = {
-        Type = "oneshot";
-        RemainAfterExit = true;
-        ExecStart = pkgs.writeShellScript "vfio-pci-bind" ''
-          # Enable VFIO modules
-          ${pkgs.kmod}/bin/modprobe vfio-pci
-          
-          ${lib.concatStringsSep "\n" (map (addr: ''
-            # Bind ${addr} to VFIO
-            echo "0000:${addr}" > /sys/bus/pci/devices/0000:${addr}/driver/unbind 2>/dev/null || true
-            echo "vfio-pci" > /sys/bus/pci/devices/0000:${addr}/driver_override
-            echo "0000:${addr}" > /sys/bus/pci/drivers/vfio-pci/bind
-          '') pciAddresses)}
-        '';
-        ExecStop = pkgs.writeShellScript "vfio-pci-unbind" ''
-          ${lib.concatStringsSep "\n" (map (addr: ''
-            # Unbind ${addr} from VFIO
-            echo "0000:${addr}" > /sys/bus/pci/drivers/vfio-pci/unbind 2>/dev/null || true
-            echo > /sys/bus/pci/devices/0000:${addr}/driver_override
-          '') pciAddresses)}
-        '';
-      };
-    };
-
     # ensure overlay dir exists
     systemd.tmpfiles.rules = [ "d ${imageDirectory} 0755 root root - -" ];
 
@@ -150,7 +121,37 @@ in {
         KillMode   = "mixed";
       };
     }
-    )) cfg.services;
+    )) cfg.services
+    # Add the VFIO binding service
+    // lib.optionalAttrs (pciAddresses != []) {
+      vfio-pci-bind = {
+        description = "Bind specific PCI devices to VFIO";
+        wantedBy = [ "multi-user.target" ];
+        after = [ "multi-user.target" ];
+        serviceConfig = {
+          Type = "oneshot";
+          RemainAfterExit = true;
+          ExecStart = pkgs.writeShellScript "vfio-pci-bind" ''
+            # Enable VFIO modules
+            ${pkgs.kmod}/bin/modprobe vfio-pci
+            
+            ${lib.concatStringsSep "\n" (map (addr: ''
+              # Bind ${addr} to VFIO
+              echo "0000:${addr}" > /sys/bus/pci/devices/0000:${addr}/driver/unbind 2>/dev/null || true
+              echo "vfio-pci" > /sys/bus/pci/devices/0000:${addr}/driver_override
+              echo "0000:${addr}" > /sys/bus/pci/drivers/vfio-pci/bind
+            '') pciAddresses)}
+          '';
+          ExecStop = pkgs.writeShellScript "vfio-pci-unbind" ''
+            ${lib.concatStringsSep "\n" (map (addr: ''
+              # Unbind ${addr} from VFIO
+              echo "0000:${addr}" > /sys/bus/pci/drivers/vfio-pci/unbind 2>/dev/null || true
+              echo > /sys/bus/pci/devices/0000:${addr}/driver_override
+            '') pciAddresses)}
+          '';
+        };
+      };
+    };
 
     # console aliases
     environment.shellAliases = lib.mapAttrs' (n: _: {
