@@ -61,9 +61,9 @@ in {
       description       = "QEMU VM: ${name}";
       wantedBy          = [ "multi-user.target" ];
       after             = lib.optionals (v.pciHosts != []) [ "vfio-pci-bind.service" ]
-                       ++ [ "prepare-qemu-image-${v.baseImage}.service" ];
+                            ++ [ "prepare-qemu-image-${v.baseImage}.service" ];
       requires          = lib.optionals (v.pciHosts != []) [ "vfio-pci-bind.service" ]
-                       ++ [ "prepare-qemu-image-${v.baseImage}.service" ];
+                            ++ [ "prepare-qemu-image-${v.baseImage}.service" ];
       path              = [ pkgs.qemu pkgs.socat ];
       restartIfChanged  = true;
 
