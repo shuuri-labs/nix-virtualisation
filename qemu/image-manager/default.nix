@@ -1,148 +1,114 @@
 { config, pkgs, lib, ... }:
 let
   images = config.virtualisation.qemu.manager.images;
+  baseImageDirectory = config.virtualisation.qemu.manager.baseImageDirectory;
 
-  # Build each enabled image: copy/fetch, unpack, convert, and install
-  makeImage = name: img:
+  # Create systemd service to prepare each image
+  makeImageService = name: img:
     let
       srcDrv = if lib.isString img.source then 
                   pkgs.fetchurl { url = img.source; sha256 = img.sourceSha256; } 
                 else 
                   img.source;
-    in
-      pkgs.stdenv.mkDerivation {
-        name = "qemu-image-${name}";
-
-        # 1) fetch (with sha256) or use local
-        src = srcDrv;
-
-        # Explicitly set the phases we want to run
-        phases = [ "unpackPhase" "buildPhase" "installPhase" ];
-
-        # 2) unpack if compressedFormat is set
-        unpackPhase = ''
-          # Get just the filename without path
-          srcFile=$(basename "$src")
-          
-          # If source is a directory, copy recursively
-          # can probably remove since openwrt single image derivation now outputs a single file
-          if [ -d "$src" ]; then
-            cp -r "$src"/* .
-          else
-            # Copy source file to current directory
-            cp "$src" "$srcFile"
-            
-            ${lib.optionalString (img.compressedFormat != null) ''
-              case "${img.compressedFormat}" in
-                # formats besides gz may also need || true or some other way to escape warning messages! untested
-                zip) unzip "$srcFile"        ;;
-                gz)  gunzip -f "$srcFile" || true  ;;
-                bz2) bunzip2 -f "$srcFile"   ;;
-                xz)  unxz -f "$srcFile"      ;;
-              esac
-              srcFile=''${srcFile%%.${img.compressedFormat}}
-            ''}
-          fi
-        '';
-
-        # 3) convert → qcow2, then maybe resize
-        buildInputs = [ pkgs.qemu pkgs.xz ];
-
-        buildPhase = ''
-          outFile=${name}.qcow2
-
-          if [ "${img.sourceFormat}" != "qcow2" ] || [ ! -f "$outFile" ]; then
-            qemu-img convert \
-              -f ${img.sourceFormat} \
-              -O qcow2 \
-              "$srcFile" \
-              "$outFile"
-          fi
-
-          ${lib.optionalString (img.resizeGB != null) ''
-            qemu-img resize "$outFile" ${toString img.resizeGB}G
-          ''}
-        '';
-
-        # 4) install the final qcow2
-        installPhase = ''
-          mkdir -p $out
-          mv *.qcow2 $out/
-        '';
+    in {
+      description = "Prepare QEMU image: ${name}";
+      wantedBy = [ "multi-user.target" ];
+      before = [ "qemu-${name}.service" ];
+      
+      serviceConfig = {
+        Type = "oneshot";
+        RemainAfterExit = true;
+        ReadWritePaths = [ baseImageDirectory ];
       };
 
-  # Build only "enabled" images into a set of derivations
-  builtImages = lib.mapAttrs (name: img:
-    makeImage name img
+      script = ''
+        set -euo pipefail
+        
+        # Create image directory if it doesn't exist
+        mkdir -p ${baseImageDirectory}
+        
+        # Check if image already exists and is up to date
+        imageFile="${baseImageDirectory}/${name}.qcow2"
+        srcHash="${srcDrv.outputHash or "unknown"}"
+        hashFile="${baseImageDirectory}/.${name}.hash"
+        
+        if [ -f "$imageFile" ] && [ -f "$hashFile" ] && [ "$(cat "$hashFile")" = "$srcHash" ]; then
+          echo "Image ${name} is already up to date"
+          exit 0
+        fi
+        
+        echo "Preparing image ${name}..."
+        
+        # Create temporary working directory
+        workDir=$(mktemp -d)
+        trap "rm -rf $workDir" EXIT
+        cd "$workDir"
+        
+        # Get just the filename without path
+        srcFile=$(basename "${srcDrv}")
+        
+        # Copy source file to working directory
+        if [ -d "${srcDrv}" ]; then
+          cp -r "${srcDrv}"/* .
+        else
+          cp "${srcDrv}" "$srcFile"
+          
+          ${lib.optionalString (img.compressedFormat != null) ''
+            case "${img.compressedFormat}" in
+              zip) ${pkgs.unzip}/bin/unzip "$srcFile" ;;
+              gz)  ${pkgs.gzip}/bin/gunzip -f "$srcFile" || true ;;
+              bz2) ${pkgs.bzip2}/bin/bunzip2 -f "$srcFile" ;;
+              xz)  ${pkgs.xz}/bin/unxz -f "$srcFile" ;;
+            esac
+            srcFile=''${srcFile%%.${img.compressedFormat}}
+          ''}
+        fi
+        
+        # Convert to qcow2 if needed
+        outFile="${name}.qcow2"
+        if [ "${img.sourceFormat}" != "qcow2" ] || [ ! -f "$outFile" ]; then
+          ${pkgs.qemu}/bin/qemu-img convert \
+            -f ${img.sourceFormat} \
+            -O qcow2 \
+            "$srcFile" \
+            "$outFile"
+        fi
+        
+        ${lib.optionalString (img.resizeGB != null) ''
+          ${pkgs.qemu}/bin/qemu-img resize "$outFile" ${toString img.resizeGB}G
+        ''}
+        
+        # Atomically move to final location
+        mv "$outFile" "$imageFile"
+        echo "$srcHash" > "$hashFile"
+        
+        echo "Image ${name} prepared successfully"
+      '';
+    };
+
+  # Build enabled images as systemd services
+  imageServices = lib.mapAttrs' (name: img: 
+    lib.nameValuePair "prepare-qemu-image-${name}" (makeImageService name img)
   ) (lib.filterAttrs (_: img: img.enable or false) images);
+
+  # Generate image metadata for /etc/qemu-images.json
+  enabledImages = lib.filterAttrs (_: img: img.enable or false) images;
+  imageMetadata = lib.mapAttrs (name: _: {
+    path = "${baseImageDirectory}/${name}.qcow2";
+    format = "qcow2";
+  }) enabledImages;
 in 
 {
-  ##############################################################################
-  # 1) Module options
-  options.virtualisation.qemu.manager.images = lib.mkOption {
-    type        = lib.types.attrsOf (lib.types.submodule ({
-      options = {
-        enable = lib.mkEnableOption "Build and convert this QEMU image";
+  config = lib.mkIf (enabledImages != {}) {
+    # Create the image directory
+    systemd.tmpfiles.rules = [ "d ${baseImageDirectory} 0755 root root - -" ];
 
+    # Add systemd services for image preparation
+    systemd.services = imageServices;
 
-        source = lib.mkOption {
-          type        = lib.types.nullOr (lib.types.either lib.types.str lib.types.package);
-          default     = null;
-          description = ''
-            Remote URL or local path to fetch the image from.
-            If local path, prefix with: file://
-          '';
-        };
-
-        sourceSha256 = lib.mkOption {
-          type        = lib.types.nullOr lib.types.str;
-          default     = null;
-          description = '' 
-            Required if `source` is a remote URL.  
-            If source is a local path, prefix with: file://
-            You can get the sha256 by running `nix-prefetch-url <url>`
-          '';
-        };
-
-        sourceFormat = lib.mkOption {
-          type        = lib.types.enum [ "raw" "vmdk" "vdi" "vhdx" "qcow" "qcow2" ];
-          default     = "raw";
-          description = "Format of the source image.";
-        };
-
-        compressedFormat = lib.mkOption {
-          type        = lib.types.nullOr (lib.types.enum [ "zip" "gz" "bz2" "xz" ]);
-          default     = null;
-          description = "Decompression type, if the source is an archive.";
-        };
-
-        resizeGB = lib.mkOption {
-          type        = lib.types.nullOr lib.types.ints.positive;
-          default     = null;
-          description = "If set, resize the resulting qcow2 to this size in GiB.";
-        };
-      };
-    }));
-    default     = { };
-    description = "Declarative download/unzip/convert of VM images to qcow2.";
+    # Emit /etc/qemu-images.json
+    environment.etc."qemu-images.json".text = builtins.toJSON imageMetadata;
   };
-
-  options.virtualisation.qemu.manager.builtImages = lib.mkOption {
-    type = lib.types.attrs;
-    internal = true;
-    default = builtImages;
-    description = "Internal: built image derivations";
-  };
-
-  # 2) Emit /etc/qemu-images.json once any image is enabled
-  config = lib.mkIf (lib.any (img: img.enable) (lib.attrValues images)) {
-     environment.etc."qemu-images.json".text = builtins.toJSON (
-       lib.mapAttrs (name: drv: {
-         path = "${drv}/${name}.qcow2";
-         format = "qcow2";  # All our converted images are qcow2
-       }) builtImages
-     );
-   };
 }
 
 

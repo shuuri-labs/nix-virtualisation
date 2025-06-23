@@ -1,14 +1,15 @@
 { config, lib, pkgs, ... }:
 
 let
-  cfg             = config.virtualisation.qemu.manager;
-  helpers         = import ./helpers.nix { inherit lib pkgs; };
+  cfg                = config.virtualisation.qemu.manager;
+  imageDirectory     = cfg.imageDirectory;
+  baseImageDirectory = cfg.baseImageDirectory;
+  helpers            = import ./helpers.nix { inherit lib pkgs; };
+
   hostBridgeNames = lib.unique (lib.flatten (lib.mapAttrsToList (_: v: v.hostBridges) cfg.services));
   vncPorts        = map (n: 5900 + n) (lib.collect lib.isInt (lib.mapAttrsToList (_: v: v.vncPort) cfg.services));
-  # Get unique PCI addresses for device-specific binding
   pciAddresses    = lib.unique (lib.flatten (lib.mapAttrsToList (_: v:
                      lib.map (h: h.address) v.pciHosts) cfg.services));
-  imageDirectory  = "/var/lib/vm/images";
 in {
   config = lib.mkIf (cfg.services != {}) {
     virtualisation.libvirtd.allowedBridges =  hostBridgeNames;
@@ -31,7 +32,7 @@ in {
     systemd.services = lib.mapAttrs (name: v: lib.mkIf v.enable (
     let
       # precompute the backing-store image for this service
-      base   = "${config.virtualisation.qemu.manager.builtImages.${v.baseImage}}/${v.baseImage}.qcow2";
+      base   = "${baseImageDirectory}/${v.baseImage}.qcow2";
       format = "qcow2";
 
       preScript = ''
@@ -45,37 +46,25 @@ in {
         base='${base}'
         format='${format}'
 
-        # 3) Extract the Nix store hash from the directory name
-        baseDir=$(dirname "$base")
-        storeHash=$(basename "$baseDir")
+        # 3) Create VM-specific image filename
+        vmImage='${imageDirectory}/${name}-${v.baseImage}.qcow2'
 
-        # 4) Construct a hash-specific overlay filename
-        realOverlay='${imageDirectory}/${name}-'"$storeHash"'.qcow2'
-
-        # 5) Create that overlay only if it doesn't already exist
-        if [ ! -f "$realOverlay" ]; then
+        # 4) Copy base image to VM-specific image if it doesn't exist or base is newer
+        if [ ! -f "$vmImage" ] || [ "$base" -nt "$vmImage" ]; then
           mkdir -p '${imageDirectory}'
-          ${pkgs.qemu}/bin/qemu-img create \
-            -f qcow2 \
-            -F "$format" \
-            -b "$base" \
-            "$realOverlay"
+          echo "Copying base image ${v.baseImage} for VM ${name}..."
+          cp "$base" "$vmImage"
         fi
-
-        # 6) Atomically update a stable symlink for QEMU to use
-        ln -sf "$(basename "$realOverlay")" '${imageDirectory}/${name}.qcow2'
       '';
 
     in {
-      description     = "QEMU VM: ${name}";
-      wantedBy        = [ "multi-user.target" ];
-      after           = lib.optional (v.pciHosts != []) "vfio-pci-bind.service";
-      requires        = lib.optional (v.pciHosts != []) "vfio-pci-bind.service";
-      path            = [ pkgs.qemu pkgs.socat ];
-
-      restartTriggers   = [
-        config.virtualisation.qemu.manager.builtImages.${v.baseImage}.drvPath
-      ];
+      description       = "QEMU VM: ${name}";
+      wantedBy          = [ "multi-user.target" ];
+      after             = lib.optionals (v.pciHosts != []) [ "vfio-pci-bind.service" ]
+                       ++ [ "prepare-qemu-image-${v.baseImage}.service" ];
+      requires          = lib.optionals (v.pciHosts != []) [ "vfio-pci-bind.service" ]
+                       ++ [ "prepare-qemu-image-${v.baseImage}.service" ];
+      path              = [ pkgs.qemu pkgs.socat ];
       restartIfChanged  = true;
 
       serviceConfig = {
@@ -92,10 +81,10 @@ in {
               # root disk: virtio vs SCSI
               ++ (if v.rootScsi then [
                    "-device" "virtio-scsi-pci"
-                   "-drive"  "file=${imageDirectory}/${name}.qcow2,if=none,id=drive0,format=qcow2"
+                   "-drive"  "file=${imageDirectory}/${name}-${v.baseImage}.qcow2,if=none,id=drive0,format=qcow2"
                    "-device" "scsi-hd,drive=drive0"
                  ] else [
-                   "-drive" "file=${imageDirectory}/${name}.qcow2,if=virtio,format=qcow2"
+                   "-drive" "file=${imageDirectory}/${name}-${v.baseImage}.qcow2,if=virtio,format=qcow2"
                  ])
 
               # core machine options
@@ -109,7 +98,7 @@ in {
 
               # bridges, PCI & USB passthrough, extra args
               ++ helpers.mkTapArgs            v.hostBridges cfg.hostName name v.smp
-              ++ helpers.mkUserNetArgs        name v.portForwards
+              # ++ helpers.mkUserNetArgs        name v.portForwards
               ++ helpers.mkPciPassthroughArgs v.pciHosts
               ++ helpers.mkUsbPassthroughArgs v.usbHosts
               ++ helpers.mkExtraArgs          v.extraArgs

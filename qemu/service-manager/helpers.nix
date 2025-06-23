@@ -24,18 +24,18 @@ rec {
   mkPciPassthroughArgs = hosts:
     builtins.concatLists (builtins.map (h: [ "-device" "vfio-pci,host=${h.address}" ]) hosts);
 
-  mkUserNetArgs = vmName: portForwards:
-    if builtins.length portForwards > 0 then
-      let
-        hostfwdList = builtins.map (portForward: 
-          "tcp::${builtins.toString portForward.hostPort}-:${builtins.toString portForward.vmPort}"
-        ) portForwards;
-        hostfwdStr = builtins.concatStringsSep ",hostfwd=" hostfwdList;
-      in [
-        "-netdev" "user,id=${vmName}-user,hostfwd=${hostfwdStr}"
-        "-device" "virtio-net-pci,netdev=${vmName}-user"
-      ]
-    else [];
+  # mkUserNetArgs = vmName: portForwards:
+  #   if builtins.length portForwards > 0 then
+  #     let
+  #       hostfwdList = builtins.map (portForward: 
+  #         "tcp::${builtins.toString portForward.hostPort}-:${builtins.toString portForward.vmPort}"
+  #       ) portForwards;
+  #       hostfwdStr = builtins.concatStringsSep ",hostfwd=" hostfwdList;
+  #     in [
+  #       "-netdev" "user,id=${vmName}-user,hostfwd=${hostfwdStr}"
+  #       "-device" "virtio-net-pci,netdev=${vmName}-user"
+  #     ]
+  #   else [];
 
   mkUsbPassthroughArgs = hosts:
     if builtins.length hosts > 0 then
