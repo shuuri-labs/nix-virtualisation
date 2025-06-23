@@ -31,8 +31,9 @@ in {
 
     systemd.services = lib.mapAttrs (name: v: lib.mkIf v.enable (
     let
-      # precompute the backing-store image for this service
-      base   = "${baseImageDirectory}/${v.baseImage}.qcow2";
+      # Determine if we're using a base image or creating a blank disk
+      useBaseImage = v.baseImage != null;
+      base = if useBaseImage then "${baseImageDirectory}/${v.baseImage}.qcow2" else null;
       format = "qcow2";
 
       preScript = ''
@@ -42,29 +43,66 @@ in {
         # 1) UEFI setup if requested
         ${helpers.mkUefiPreStart name v.uefi}
 
-        # 2) Known backing-image path and format
-        base='${base}'
-        format='${format}'
+        # 2) Handle disk creation based on mode
+        ${if useBaseImage then ''
+          # Using base image - copy it for this VM
+          base='${base}'
+          format='${format}'
+          vmImage='${imageDirectory}/${name}-${v.baseImage}.qcow2'
+          
+          if [ ! -f "$vmImage" ] || [ "$base" -nt "$vmImage" ]; then
+            mkdir -p '${imageDirectory}'
+            echo "Copying base image ${v.baseImage} for VM ${name}..."
+            cp "$base" "$vmImage"
+          fi
+        '' else ''
+          # Creating blank disk
+          vmImage='${imageDirectory}/${name}.qcow2'
+          
+          if [ ! -f "$vmImage" ]; then
+            mkdir -p '${imageDirectory}'
+            echo "Creating blank disk for VM ${name} (${toString v.diskSizeGB}GB)..."
+            ${pkgs.qemu}/bin/qemu-img create -f qcow2 "$vmImage" ${toString v.diskSizeGB}G
+          fi
+        ''}
 
-        # 3) Create VM-specific image filename
-        vmImage='${imageDirectory}/${name}-${v.baseImage}.qcow2'
-
-        # 4) Copy base image to VM-specific image if it doesn't exist or base is newer
-        if [ ! -f "$vmImage" ] || [ "$base" -nt "$vmImage" ]; then
-          mkdir -p '${imageDirectory}'
-          echo "Copying base image ${v.baseImage} for VM ${name}..."
-          cp "$base" "$vmImage"
-        fi
+        ${lib.optionalString v.cloudInit.enable ''
+          # 3) Generate cloud-init ISO if enabled
+          cloudInitIso='${imageDirectory}/${name}-cloud-init.iso'
+          cloudInitDir=$(mktemp -d)
+          trap "rm -rf $cloudInitDir" EXIT
+          
+          ${lib.optionalString (v.cloudInit.userData != null) ''
+            echo '${v.cloudInit.userData}' > "$cloudInitDir/user-data"
+          ''}
+          ${lib.optionalString (v.cloudInit.metaData != null) ''
+            echo '${v.cloudInit.metaData}' > "$cloudInitDir/meta-data"
+          ''}
+          ${lib.optionalString (v.cloudInit.networkConfig != null) ''
+            echo '${v.cloudInit.networkConfig}' > "$cloudInitDir/network-config"
+          ''}
+          
+          # Create cloud-init ISO if it doesn't exist or if config changed
+          if [ ! -f "$cloudInitIso" ]; then
+            echo "Creating cloud-init ISO for VM ${name}..."
+            ${pkgs.genisoimage}/bin/genisoimage \
+              -output "$cloudInitIso" \
+              -volid cidata \
+              -joliet \
+              -rock \
+              "$cloudInitDir"
+          fi
+        ''}
       '';
 
     in {
       description       = "QEMU VM: ${name}";
       wantedBy          = [ "multi-user.target" ];
       after             = lib.optionals (v.pciHosts != []) [ "vfio-pci-bind.service" ]
-                            ++ [ "prepare-qemu-image-${v.baseImage}.service" ];
+                            ++ lib.optionals useBaseImage [ "prepare-qemu-image-${v.baseImage}.service" ];
       requires          = lib.optionals (v.pciHosts != []) [ "vfio-pci-bind.service" ]
-                            ++ [ "prepare-qemu-image-${v.baseImage}.service" ];
-      path              = [ pkgs.qemu pkgs.socat ];
+                            ++ lib.optionals useBaseImage [ "prepare-qemu-image-${v.baseImage}.service" ];
+      path              = [ pkgs.qemu pkgs.socat pkgs.genisoimage ];
       restartIfChanged  = true;
 
       serviceConfig = {
@@ -81,19 +119,30 @@ in {
               # root disk: virtio vs SCSI
               ++ (if v.rootScsi then [
                    "-device" "virtio-scsi-pci"
-                   "-drive"  "file=${imageDirectory}/${name}-${v.baseImage}.qcow2,if=none,id=drive0,format=qcow2"
+                   "-drive"  "file=${imageDirectory}/${name}-${if useBaseImage then v.baseImage else ""}.qcow2,if=none,id=drive0,format=qcow2"
                    "-device" "scsi-hd,drive=drive0"
                  ] else [
-                   "-drive" "file=${imageDirectory}/${name}-${v.baseImage}.qcow2,if=virtio,format=qcow2"
+                   "-drive" "file=${imageDirectory}/${name}-${if useBaseImage then v.baseImage else ""}.qcow2,if=virtio,format=qcow2"
                  ])
 
               # core machine options
               ++ [
-                   "-enable-kvm" "-machine" "q35" "-cpu" "host"
+                   "-enable-kvm" "-machine" "q35" "-cpu" v.cpuType
                    "-m" (toString v.memory) "-smp" (toString v.smp)
                    "-device" "usb-ehci" "-device" "usb-tablet"
                    "-display" "vnc=:${toString v.vncPort}"
                    "-serial" "unix:/tmp/${name}-console.sock,server,nowait"
+                   "-boot" "order=${v.bootOrder}"
+                 ]
+              
+              # installer ISO mounting
+              ++ lib.optionals (v.installerIso != null) [
+                   "-drive" "file=${v.installerIso},if=ide,index=0,media=cdrom,readonly=on"
+                 ]
+              
+              # cloud-init ISO mounting
+              ++ lib.optionals v.cloudInit.enable [
+                   "-drive" "file=${imageDirectory}/${name}-cloud-init.iso,if=ide,index=1,media=cdrom,readonly=on"
                  ]
 
               # bridges, PCI & USB passthrough, extra args

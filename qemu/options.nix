@@ -92,9 +92,14 @@ in
       type = lib.types.attrsOf (lib.types.submodule {
         options = {
           enable       = lib.mkEnableOption "QEMU virtual machine";
-          baseImage    = lib.mkOption { type = lib.types.str; };
+          baseImage    = lib.mkOption { 
+            type = lib.types.nullOr lib.types.str; 
+            default = null;
+            description = "Base image to use. If null, creates a blank disk.";
+          };
           rootScsi     = lib.mkOption { type = lib.types.bool; default = false; };
           uefi         = lib.mkOption { type = lib.types.bool; default = false; };
+          cpuType      = lib.mkOption { type = lib.types.str; default = "host"; };
           memory       = lib.mkOption { type = lib.types.ints.positive; default = 512; };
           smp          = lib.mkOption { type = lib.types.ints.positive; default = 2; };
           hostBridges  = lib.mkOption { type = lib.types.listOf lib.types.str; default = []; };
@@ -104,6 +109,54 @@ in
           vncPort      = lib.mkOption { type = lib.types.ints.between 0 99; };
           extraArgs    = lib.mkOption { type = lib.types.listOf lib.types.str; default = []; };
           restart      = lib.mkOption { type = lib.types.str; default = "always"; };
+          
+          # Blank disk configuration
+          diskSizeGB   = lib.mkOption { 
+            type = lib.types.ints.positive; 
+            default = 20;
+            description = "Size of the disk in GB when creating blank disks.";
+          };
+          
+          # Installation support
+          installerIso = lib.mkOption {
+            type = lib.types.nullOr lib.types.str;
+            default = null;
+            description = "Path to installer ISO to mount as CD-ROM.";
+          };
+          
+          bootOrder = lib.mkOption {
+            type = lib.types.str;
+            default = "cd";
+            description = "Boot order: 'cd' for CD-ROM first, 'dc' for disk first.";
+          };
+          
+          # Cloud-init support
+          cloudInit = lib.mkOption {
+            type = lib.types.submodule {
+              options = {
+                enable = lib.mkEnableOption "cloud-init configuration";
+                
+                userData = lib.mkOption {
+                  type = lib.types.nullOr lib.types.str;
+                  default = null;
+                  description = "Cloud-init user-data content or path to file.";
+                };
+                
+                metaData = lib.mkOption {
+                  type = lib.types.nullOr lib.types.str;
+                  default = null;
+                  description = "Cloud-init meta-data content or path to file.";
+                };
+                
+                networkConfig = lib.mkOption {
+                  type = lib.types.nullOr lib.types.str;
+                  default = null;
+                  description = "Cloud-init network-config content or path to file.";
+                };
+              };
+            };
+            default = {};
+          };
         };
       });
       description = "Declarative configuration of QEMU virtual machines.";

@@ -27,13 +27,11 @@ let
         # Create image directory if it doesn't exist
         mkdir -p ${baseImageDirectory}
         
-        # Check if image already exists and is up to date
+        # Check if image already exists
         imageFile="${baseImageDirectory}/${name}.qcow2"
-        srcHash="${srcDrv.outputHash or "unknown"}"
-        hashFile="${baseImageDirectory}/.${name}.hash"
         
-        if [ -f "$imageFile" ] && [ -f "$hashFile" ] && [ "$(cat "$hashFile")" = "$srcHash" ]; then
-          echo "Image ${name} is already up to date"
+        if [ -f "$imageFile" ]; then
+          echo "Image ${name} already exists, skipping"
           exit 0
         fi
         
@@ -80,7 +78,6 @@ let
         
         # Atomically move to final location
         mv "$outFile" "$imageFile"
-        echo "$srcHash" > "$hashFile"
         
         echo "Image ${name} prepared successfully"
       '';
