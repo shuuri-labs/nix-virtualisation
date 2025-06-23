@@ -24,12 +24,12 @@ rec {
   mkPciPassthroughArgs = hosts:
     builtins.concatLists (builtins.map (h: [ "-device" "vfio-pci,host=${h.address}" ]) hosts);
 
-  mkUserNetArgs = vmName: hostfwdRules:
-    if builtins.length (builtins.attrNames hostfwdRules) > 0 then
+  mkUserNetArgs = vmName: portForwards:
+    if builtins.length portForwards > 0 then
       let
-        hostfwdList = builtins.map (hostPort: 
-          "tcp::${hostPort}-:${builtins.toString (builtins.getAttr hostPort hostfwdRules)}"
-        ) (builtins.attrNames hostfwdRules);
+        hostfwdList = builtins.map (portForward: 
+          "tcp::${builtins.toString portForward.hostPort}-:${builtins.toString portForward.vmPort}"
+        ) portForwards;
         hostfwdStr = builtins.concatStringsSep ",hostfwd=" hostfwdList;
       in [
         "-netdev" "user,id=${vmName}-user,hostfwd=${hostfwdStr}"
