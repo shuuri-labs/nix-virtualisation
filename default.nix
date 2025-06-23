@@ -8,8 +8,7 @@ in
     ./base.nix
     ./bare-metal.nix
     ./intel.nix
-    ./qemu/service-manager
-    ./qemu/image-manager
+    ./qemu
   ];
 
   config = {
