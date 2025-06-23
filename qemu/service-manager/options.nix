@@ -41,7 +41,7 @@ in
           memory       = lib.mkOption { type = lib.types.ints.positive; default = 512; };
           smp          = lib.mkOption { type = lib.types.ints.positive; default = 2; };
           hostBridges  = lib.mkOption { type = lib.types.listOf lib.types.str; default = []; };
-          portForwards = lib.mkOption { type = lib.types.attrsOf portForward; default = {}; };
+          portForwards = lib.mkOption { type = lib.types.listOf portForward; default = []; };
           pciHosts     = lib.mkOption { type = lib.types.listOf pciHost; default = []; };
           usbHosts     = lib.mkOption { type = lib.types.listOf usbHost; default = []; };
           vncPort      = lib.mkOption { type = lib.types.ints.between 0 99; };
