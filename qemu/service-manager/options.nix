@@ -16,8 +16,8 @@ let
 
   portForward = lib.types.submodule {
     options = {
-      hostPort = lib.mkOption { type = lib.types.str; };
-      vmPort   = lib.mkOption { type = lib.types.str; };
+      hostPort = lib.mkOption { type = lib.types.ints.positive; };
+      vmPort   = lib.mkOption { type = lib.types.ints.positive; };
     };
   };
 
