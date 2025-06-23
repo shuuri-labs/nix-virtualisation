@@ -109,7 +109,7 @@ in {
 
               # bridges, PCI & USB passthrough, extra args
               ++ helpers.mkTapArgs            v.hostBridges cfg.hostName name v.smp
-              ++ helpers.mkUserNetArgs        name v.hostfwdRules
+              ++ helpers.mkUserNetArgs        name v.portForwards
               ++ helpers.mkPciPassthroughArgs v.pciHosts
               ++ helpers.mkUsbPassthroughArgs v.usbHosts
               ++ helpers.mkExtraArgs          v.extraArgs

@@ -14,6 +14,13 @@ let
     };
   };
 
+  portForward = lib.types.submodule {
+    options = {
+      hostPort = lib.mkOption { type = lib.types.str; };
+      vmPort   = lib.mkOption { type = lib.types.str; };
+    };
+  };
+
   tap = lib.types.submodule {
     options = {
       name = lib.mkOption { type = lib.types.str; };
@@ -34,12 +41,12 @@ in
           memory       = lib.mkOption { type = lib.types.ints.positive; default = 512; };
           smp          = lib.mkOption { type = lib.types.ints.positive; default = 2; };
           hostBridges  = lib.mkOption { type = lib.types.listOf lib.types.str; default = []; };
-          hostfwdRules = lib.mkOption { type = lib.types.attrsOf lib.types.str; default = {}; example = { "2022" /* hostPort */ = "22"; /* vmPort */ }; };
-          pciHosts    = lib.mkOption { type = lib.types.listOf pciHost; default = []; };
-          usbHosts    = lib.mkOption { type = lib.types.listOf usbHost; default = []; };
-          vncPort     = lib.mkOption { type = lib.types.ints.between 0 99; };
-          extraArgs   = lib.mkOption { type = lib.types.listOf lib.types.str; default = []; };
-          restart     = lib.mkOption { type = lib.types.str; default = "always"; };
+          portForwards = lib.mkOption { type = lib.types.attrsOf portForward; default = {}; };
+          pciHosts     = lib.mkOption { type = lib.types.listOf pciHost; default = []; };
+          usbHosts     = lib.mkOption { type = lib.types.listOf usbHost; default = []; };
+          vncPort      = lib.mkOption { type = lib.types.ints.between 0 99; };
+          extraArgs    = lib.mkOption { type = lib.types.listOf lib.types.str; default = []; };
+          restart      = lib.mkOption { type = lib.types.str; default = "always"; };
         };
       }));
       default = {};
