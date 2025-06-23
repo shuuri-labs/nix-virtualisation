@@ -85,7 +85,7 @@ in {
           # Create cloud-init ISO if it doesn't exist or if config changed
           if [ ! -f "$cloudInitIso" ]; then
             echo "Creating cloud-init ISO for VM ${name}..."
-            ${pkgs.genisoimage}/bin/genisoimage \
+            ${pkgs.cdrkit}/bin/genisoimage \
               -output "$cloudInitIso" \
               -volid cidata \
               -joliet \
@@ -102,7 +102,7 @@ in {
                             ++ lib.optionals useBaseImage [ "prepare-qemu-image-${v.baseImage}.service" ];
       requires          = lib.optionals (v.pciHosts != []) [ "vfio-pci-bind.service" ]
                             ++ lib.optionals useBaseImage [ "prepare-qemu-image-${v.baseImage}.service" ];
-      path              = [ pkgs.qemu pkgs.socat pkgs.genisoimage ];
+      path              = [ pkgs.qemu pkgs.socat pkgs.cdrkit ];
       restartIfChanged  = true;
 
       serviceConfig = {
