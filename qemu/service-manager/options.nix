@@ -10,7 +10,7 @@ let
 
   pciHost = lib.types.submodule {
       options = {
-        address         = lib.mkOption { type = lib.types.str; };
+        address = lib.mkOption { type = lib.types.str; };
     };
   };
 

@@ -24,9 +24,24 @@ rec {
   mkPciPassthroughArgs = hosts:
     builtins.concatLists (builtins.map (h: [ "-device" "vfio-pci,host=${h.address}" ]) hosts);
 
+  mkUserNetArgs = vmName: hostfwdRules:
+    if builtins.length (builtins.attrNames hostfwdRules) > 0 then
+      let
+        hostfwdList = builtins.map (hostPort: 
+          "tcp::${hostPort}-:${builtins.toString (builtins.getAttr hostPort hostfwdRules)}"
+        ) (builtins.attrNames hostfwdRules);
+        hostfwdStr = builtins.concatStringsSep ",hostfwd=" hostfwdList;
+      in [
+        "-netdev" "user,id=${vmName}-user,hostfwd=${hostfwdStr}"
+        "-device" "virtio-net-pci,netdev=${vmName}-user"
+      ]
+    else [];
+
   mkUsbPassthroughArgs = hosts:
-    builtins.concatLists (builtins.map (h: [ "-device"
-      "usb-host,vendorid=${h.vendorId},productid=${h.productId}" ]) hosts);
+    if builtins.length hosts > 0 then
+      [ "usb" "device qemu-xhci,id=xhci" ] ++
+      (builtins.map (h: "device usb-host,bus=xhci.0,vendorid=${h.vendorId},productid=${h.productId}") hosts)
+    else [];
 
   mkExtraArgs = extra: builtins.concatLists (builtins.map (a: [ "-${a}" ]) extra);
 

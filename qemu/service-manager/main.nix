@@ -8,7 +8,7 @@ let
   # Get unique PCI addresses for device-specific binding
   pciAddresses    = lib.unique (lib.flatten (lib.mapAttrsToList (_: v:
                      lib.map (h: h.address) v.pciHosts) cfg.services));
-  imageDirectory = "/var/lib/vm/images";
+  imageDirectory  = "/var/lib/vm/images";
 in {
   config = lib.mkIf (cfg.services != {}) {
     virtualisation.libvirtd.allowedBridges =  hostBridgeNames;
@@ -109,6 +109,7 @@ in {
 
               # bridges, PCI & USB passthrough, extra args
               ++ helpers.mkTapArgs            v.hostBridges cfg.hostName name v.smp
+              ++ helpers.mkUserNetArgs        name v.hostfwdRules
               ++ helpers.mkPciPassthroughArgs v.pciHosts
               ++ helpers.mkUsbPassthroughArgs v.usbHosts
               ++ helpers.mkExtraArgs          v.extraArgs
