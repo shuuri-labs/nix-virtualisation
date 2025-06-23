@@ -27,13 +27,14 @@ in
     services = lib.mkOption {
       type = lib.types.attrsOf (lib.types.submodule ({ ... }: {
         options = {
-          enable      = lib.mkEnableOption "QEMU virtual machine";
-          baseImage   = lib.mkOption { type = lib.types.str; };
-          rootScsi    = lib.mkOption { type = lib.types.bool; default = false; };
-          uefi        = lib.mkOption { type = lib.types.bool; default = false; };
-          memory      = lib.mkOption { type = lib.types.ints.positive; default = 512; };
-          smp         = lib.mkOption { type = lib.types.ints.positive; default = 2; };
-          hostBridges = lib.mkOption { type = lib.types.listOf lib.types.str; default = []; };
+          enable       = lib.mkEnableOption "QEMU virtual machine";
+          baseImage    = lib.mkOption { type = lib.types.str; };
+          rootScsi     = lib.mkOption { type = lib.types.bool; default = false; };
+          uefi         = lib.mkOption { type = lib.types.bool; default = false; };
+          memory       = lib.mkOption { type = lib.types.ints.positive; default = 512; };
+          smp          = lib.mkOption { type = lib.types.ints.positive; default = 2; };
+          hostBridges  = lib.mkOption { type = lib.types.listOf lib.types.str; default = []; };
+          hostfwdRules = lib.mkOption { type = lib.types.attrsOf lib.types.str; default = {}; example = { "2022" /* hostPort */ = "22"; /* vmPort */ }; };
           pciHosts    = lib.mkOption { type = lib.types.listOf pciHost; default = []; };
           usbHosts    = lib.mkOption { type = lib.types.listOf usbHost; default = []; };
           vncPort     = lib.mkOption { type = lib.types.ints.between 0 99; };
