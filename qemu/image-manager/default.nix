@@ -7,9 +7,9 @@ let
   makeImageService = name: img:
     let
       srcDrv = if lib.isString img.source then 
-                  pkgs.fetchurl { url = img.source; sha256 = img.sourceSha256; } 
-                else 
-                  img.source;
+                 pkgs.fetchurl { url = img.source; sha256 = img.sourceSha256; } 
+               else 
+                 img.source;
     in {
       description = "Prepare QEMU image: ${name}";
       wantedBy = [ "multi-user.target" ];
