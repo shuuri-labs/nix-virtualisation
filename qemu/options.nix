@@ -99,7 +99,7 @@ in
           };
           rootScsi     = lib.mkOption { type = lib.types.bool; default = false; };
           uefi         = lib.mkOption { type = lib.types.bool; default = false; };
-          cpuType      = lib.mkOption { type = lib.types.str; default = "host"; };
+          cpuType      = lib.mkOption { type = lib.types.str;  default = "host"; };
           memory       = lib.mkOption { type = lib.types.ints.positive; default = 512; };
           smp          = lib.mkOption { type = lib.types.ints.positive; default = 2; };
           hostBridges  = lib.mkOption { type = lib.types.listOf lib.types.str; default = []; };

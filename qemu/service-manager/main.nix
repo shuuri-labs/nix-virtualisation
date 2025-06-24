@@ -40,31 +40,27 @@ in {
         #!/usr/bin/env bash
         set -euo pipefail
 
-        # 1) UEFI setup if requested
+        # 1) UEFI setup if requested and set vm image path
         ${helpers.mkUefiPreStart name v.uefi}
+        vmImage='${imageDirectory}/${name}.qcow2'
 
-        # 2) Handle disk creation based on mode
-        ${if useBaseImage then ''
-          # Using base image - copy it for this VM
-          base='${base}'
-          format='${format}'
-          vmImage='${imageDirectory}/${name}-${v.baseImage}.qcow2'
+        # 2) Handle disk creation based on what's specified
+        if [ ! -f "$vmImage" ]; then
+          mkdir -p '${imageDirectory}'
           
-          if [ ! -f "$vmImage" ] || [ "$base" -nt "$vmImage" ]; then
-            mkdir -p '${imageDirectory}'
-            echo "Copying base image ${v.baseImage} for VM ${name}..."
+          ${if useBaseImage then ''
+            # Create from base image
+            base='${base}'
+            echo "Creating VM image ${name} from base image ${v.baseImage}..."
             cp "$base" "$vmImage"
-          fi
-        '' else ''
-          # Creating blank disk
-          vmImage='${imageDirectory}/${name}.qcow2'
-          
-          if [ ! -f "$vmImage" ]; then
-            mkdir -p '${imageDirectory}'
+          '' else ''
+            # Create blank disk
             echo "Creating blank disk for VM ${name} (${toString v.diskSizeGB}GB)..."
             ${pkgs.qemu}/bin/qemu-img create -f qcow2 "$vmImage" ${toString v.diskSizeGB}G
-          fi
-        ''}
+          ''}
+        else
+          echo "VM image ${name} already exists, skipping creation"
+        fi
 
         ${lib.optionalString v.cloudInit.enable ''
           # 3) Generate cloud-init ISO if enabled
@@ -94,7 +90,6 @@ in {
           fi
         ''}
       '';
-
     in {
       description       = "QEMU VM: ${name}";
       wantedBy          = [ "multi-user.target" ];
@@ -119,10 +114,10 @@ in {
               # root disk: virtio vs SCSI
               ++ (if v.rootScsi then [
                    "-device" "virtio-scsi-pci"
-                   "-drive"  "file=${imageDirectory}/${name}-${if useBaseImage then v.baseImage else ""}.qcow2,if=none,id=drive0,format=qcow2"
+                   "-drive"  "file=${imageDirectory}/${name}.qcow2,if=none,id=drive0,format=qcow2"
                    "-device" "scsi-hd,drive=drive0"
                  ] else [
-                   "-drive" "file=${imageDirectory}/${name}-${if useBaseImage then v.baseImage else ""}.qcow2,if=virtio,format=qcow2"
+                   "-drive" "file=${imageDirectory}/${name}.qcow2,if=virtio,format=qcow2"
                  ])
 
               # core machine options
