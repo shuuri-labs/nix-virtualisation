@@ -6,5 +6,8 @@
 
   outputs = { self, nixpkgs, flake-utils, ... }: {
     nixosModules.default = ./default.nix;
+    
+    # Export the QEMU library for external use
+    lib = import ./qemu/lib.nix { lib = nixpkgs.lib; };
   };
 }

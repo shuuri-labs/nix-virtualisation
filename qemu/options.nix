@@ -5,11 +5,6 @@ let
   inherit (qemuLib.types) image usbHost pciHost portForward tap cloudInit service;
 in
 {
-  # Export types for reuse
-  lib.qemu.types = {
-    inherit image usbHost pciHost portForward tap;
-  };
-
   options.virtualisation.qemu.manager = { 
     hostName = lib.mkOption { type = lib.types.str; default = config.networking.hostName; };
 
