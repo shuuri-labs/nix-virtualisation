@@ -1,5 +1,4 @@
 { lib }:
-
 {
   types = {
     image = lib.types.submodule {
@@ -96,12 +95,7 @@
       };
     };
 
-    service = lib.types.submodule ({ config, lib, ... }: let
-      # Reference the other types defined in this same file
-      types = {
-        inherit portForward pciHost usbHost cloudInit;
-      };
-    in {
+    service = lib.types.submodule {
       options = {
         enable       = lib.mkEnableOption "QEMU virtual machine";
         baseImage    = lib.mkOption { 
@@ -115,9 +109,9 @@
         memory       = lib.mkOption { type = lib.types.ints.positive; default = 512; };
         smp          = lib.mkOption { type = lib.types.ints.positive; default = 2; };
         hostBridges  = lib.mkOption { type = lib.types.listOf lib.types.str; default = []; };
-        portForwards = lib.mkOption { type = lib.types.listOf types.portForward; default = []; };
-        pciHosts     = lib.mkOption { type = lib.types.listOf types.pciHost; default = []; };
-        usbHosts     = lib.mkOption { type = lib.types.listOf types.usbHost; default = []; };
+        portForwards = lib.mkOption { type = lib.types.listOf portForward; default = []; };
+        pciHosts     = lib.mkOption { type = lib.types.listOf pciHost; default = []; };
+        usbHosts     = lib.mkOption { type = lib.types.listOf usbHost; default = []; };
         vncPort      = lib.mkOption { type = lib.types.ints.between 0 99; };
         extraArgs    = lib.mkOption { type = lib.types.listOf lib.types.str; default = []; };
         restart      = lib.mkOption { type = lib.types.str; default = "always"; };
@@ -144,10 +138,10 @@
         
         # Cloud-init support  
         cloudInit = lib.mkOption {
-          type = types.cloudInit;
+          type = cloudInit;
           default = {};
         };
       };
-    });
+    };
   };
 } 
