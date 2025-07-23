@@ -39,7 +39,7 @@ rec {
 
   mkUsbPassthroughArgs = hosts:
     if builtins.length hosts > 0 then
-      [ "-usb" "device qemu-xhci,id=xhci" ] ++
+      [ "-usb" "-device" "qemu-xhci,id=xhci" ] ++
       (builtins.map (h: "-device usb-host,bus=xhci.0,vendorid=${h.vendorId},productid=${h.productId}") hosts)
     else [];
 
