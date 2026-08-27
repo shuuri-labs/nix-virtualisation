@@ -36,12 +36,6 @@ let
         default     = null;
         description = "Decompression type, if the source is an archive.";
       };
-
-      resizeGB = lib.mkOption {
-        type        = lib.types.nullOr lib.types.ints.positive;
-        default     = null;
-        description = "If set, resize the resulting qcow2 to this size in GiB.";
-      };
     };
   };
 
@@ -118,11 +112,11 @@ let
       extraArgs    = lib.mkOption { type = lib.types.listOf lib.types.str; default = []; };
       restart      = lib.mkOption { type = lib.types.str; default = "always"; };
       
-      # Blank disk configuration
+      # Disk configuration
       diskSizeGB   = lib.mkOption { 
         type = lib.types.ints.positive; 
         default = 20;
-        description = "Size of the disk in GB when creating blank disks.";
+        description = "Size of the VM disk in GB. Blank disks are created at this size; disks copied from a base image are grown to it (never shrunk).";
       };
       
       # Installation support

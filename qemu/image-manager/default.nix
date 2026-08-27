@@ -72,10 +72,6 @@ let
             "$outFile"
         fi
         
-        ${lib.optionalString (img.resizeGB != null) ''
-          ${pkgs.qemu}/bin/qemu-img resize "$outFile" ${toString img.resizeGB}G
-        ''}
-        
         # Atomically move to final location
         mv "$outFile" "$imageFile"
         
