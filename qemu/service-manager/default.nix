@@ -106,7 +106,9 @@ in {
       requires          = lib.optionals (v.pciHosts != []) [ "vfio-pci-bind.service" ]
                             ++ lib.optionals useBaseImage [ "prepare-qemu-image-${v.baseImage}.service" ];
       path              = [ pkgs.qemu pkgs.socat pkgs.cdrkit ];
-      restartIfChanged  = true;
+      # never bounce a running vm on nixos-rebuild switch; unit changes (new qemu,
+      # image, settings) take effect on the next manual restart or host reboot
+      restartIfChanged  = false;
 
       serviceConfig = {
         Type           = "simple";
