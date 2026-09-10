@@ -24,7 +24,7 @@ in {
 
     networking.firewall.allowedTCPPorts = vncPorts;
 
-    # ensure overlay dir exists
+    # ensure VM disk dir exists
     systemd.tmpfiles.rules = [ "d ${imageDirectory} 0755 root root - -" ];
 
     environment.systemPackages = [ pkgs.socat ];
@@ -53,6 +53,14 @@ in {
             base='${base}'
             echo "Creating VM image ${name} from base image ${v.baseImage}..."
             cp "$base" "$vmImage"
+
+            # Grow the disk to diskSizeGB (never shrink)
+            currentBytes=$(${pkgs.qemu}/bin/qemu-img info --output=json "$vmImage" | ${pkgs.jq}/bin/jq '."virtual-size"')
+            targetBytes=$(( ${toString v.diskSizeGB} * 1024 * 1024 * 1024 ))
+            if [ "$targetBytes" -gt "$currentBytes" ]; then
+              echo "Resizing VM image ${name} to ${toString v.diskSizeGB}GB..."
+              ${pkgs.qemu}/bin/qemu-img resize "$vmImage" ${toString v.diskSizeGB}G
+            fi
           '' else ''
             # Create blank disk
             echo "Creating blank disk for VM ${name} (${toString v.diskSizeGB}GB)..."
@@ -98,7 +106,9 @@ in {
       requires          = lib.optionals (v.pciHosts != []) [ "vfio-pci-bind.service" ]
                             ++ lib.optionals useBaseImage [ "prepare-qemu-image-${v.baseImage}.service" ];
       path              = [ pkgs.qemu pkgs.socat pkgs.cdrkit ];
-      restartIfChanged  = true;
+      # never bounce a running vm on nixos-rebuild switch; unit changes (new qemu,
+      # image, settings) take effect on the next manual restart or host reboot
+      restartIfChanged  = false;
 
       serviceConfig = {
         Type           = "simple";

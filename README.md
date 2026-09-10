@@ -61,12 +61,12 @@ virtualisation.qemu.manager = {
     source = "https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img";
     sourceSha256 = "sha256-...";
     sourceFormat = "qcow2";
-    resizeGB = 20;
   };
 
   services."ubuntu-server" = {
     enable = true;
     baseImage = "ubuntu-22.04";
+    diskSizeGB = 20;  # base image copy is grown to this size
     memory = 2048;
     smp = 2;
     vncPort = 1;
@@ -151,7 +151,6 @@ virtualisation.qemu.manager.services."gaming-vm" = {
 | `sourceSha256` | string | SHA256 hash for verification |
 | `sourceFormat` | enum | Source format: `raw`, `vmdk`, `vdi`, `vhdx`, `qcow`, `qcow2` |
 | `compression` | enum | Compression type: `none`, `zip`, `gz`, `bz2`, `xz` |
-| `resizeGB` | int | Resize the image to this size in GB |
 
 ### Service (VM) Options
 
@@ -159,7 +158,7 @@ virtualisation.qemu.manager.services."gaming-vm" = {
 |--------|------|---------|-------------|
 | `enable` | bool | `false` | Enable this VM |
 | `baseImage` | string/null | `null` | Name of base image to use (null for blank disk) |
-| `diskSizeGB` | int | `20` | Disk size in GB |
+| `diskSizeGB` | int | `20` | Disk size in GB (blank disks created at this size; base-image copies grown to it, never shrunk) |
 | `memory` | int | `1024` | RAM in MB |
 | `smp` | int | `1` | Number of CPU cores |
 | `vncPort` | int | `0` | VNC display number (access via `5900 + vncPort`) |

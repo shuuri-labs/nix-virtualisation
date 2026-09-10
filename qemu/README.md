@@ -94,12 +94,12 @@ virtualisation.qemu.manager = {
     source = "https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img";
     sourceSha256 = "...";
     sourceFormat = "qcow2";
-    resizeGB = 20;
   };
 
   services."ubuntu-cloud-server" = {
     enable = true;
     baseImage = "ubuntu-cloud";
+    diskSizeGB = 20;
     memory = 2048;
     vncPort = 4;
     
@@ -125,9 +125,11 @@ virtualisation.qemu.manager = {
 
 ## Directory Structure
 
-- **Base images**: `/var/lib/vm/base-images/` (e.g., `ubuntu-22.04.qcow2`)
-- **VM disks**: `/var/lib/vm/images/` (e.g., `ubuntu-server-ubuntu-22.04.qcow2`)
+- **Base images**: `/var/lib/vm/images/base/` (e.g., `ubuntu-22.04.qcow2`) — set with `baseImageDirectory`
+- **VM disks**: `/var/lib/vm/images/` (e.g., `ubuntu-server.qcow2`) — set with `imageDirectory`
 - **Cloud-init ISOs**: `/var/lib/vm/images/` (e.g., `ubuntu-server-cloud-init.iso`)
+
+VM disks are standalone copies (no qcow2 backing files). A VM with `baseImage` set gets a full copy of the base image, grown to `diskSizeGB`; a VM with `baseImage = null` gets a blank disk of `diskSizeGB`. Existing disks are never recreated or shrunk.
 
 ## Boot Order Options
 
@@ -172,5 +174,4 @@ journalctl -u qemu-vm-name -f
 
 ## TODO: 
 - run as own user instead of root
-- make vm overlay dir an option
 - cleanup, option descriptions and examples
